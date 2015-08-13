@@ -1,0 +1,12 @@
+[package]
+name = "mpc_framework"
+version = "0.1.0"
+authors = ["Natnatee Dokmai <nd2ga@virginia.edu>"]
+
+[dependencies]
+topological-sort = "0.0.5"
+rand = "0.3"
+gcrypt = "0.2.0"
+
+[features]
+count-gates=[]
