@@ -1,6 +1,0 @@
-party 2
-n 100
-k 20 
-max 200
-threshold 15.144 
-decimal_points 6

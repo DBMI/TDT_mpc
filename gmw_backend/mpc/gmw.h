@@ -21,11 +21,9 @@ const char GATE_VALUE_NOTASSIGNED	= 0x30;
 
 
 #define NUM_EXECS_NAOR_PINKAS	80
-#define NUM_NP_BYTES			10
-
+#define BITS_NUM_EXECS_NP		9
 #define SHA1_BYTES				20
 #define SHA1_BITS				160
-
 #define OT_WINDOW_SIZE			(SHA1_BITS*128)
 #define OT_WINDOW_SIZE_BYTES	(SHA1_BYTES*128)
  
@@ -35,10 +33,6 @@ struct SHA_BUFFER
 	operator BYTE* (){ return data; }
 };
 
-struct SHA_BUF_MATRIX
-{
-	SHA_BUFFER	buf[NUM_EXECS_NAOR_PINKAS][4];
-};
 
 const BYTE MASK_BIT[8] = 
 	{0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1};
@@ -71,10 +65,7 @@ const BYTE G_TRUTH_TABLE[3][2][2] =
 	{0,1,1,0},		// xor
 };
 
-
-#define GETBIT(buf,i)	 !!((buf)[(i)>>3] & MASK_BIT[(i) & 0x7]) 
-
-
+	
 class CBitVector
 {
 public:
@@ -209,42 +200,56 @@ private:
 
 
 
-class CBitNPMatrix 
+class CBitMatrix 
 {
 public:
-	CBitNPMatrix(){ m_pBits = NULL;}
-	~CBitNPMatrix(){if(m_pBits) delete[] m_pBits;}
- 
-	void Create(int rows)		 
+	CBitMatrix(){ m_pBits = NULL;}
+	~CBitMatrix(){ if(m_pBits) delete [] m_pBits; }
+	
+	void Create(int rows)
 	{
-		m_pBits = new BYTE[rows*NUM_NP_BYTES];
-	}
-	 
-	BYTE GetBit(int row, int col)
-	{
-		return m_pBits[row*NUM_NP_BYTES + (col>>3)] & MASK_BIT[col & 0x7];
-	}
-
-	void SetBit(int row, int col, int b)
-	{
-		int idx = row*NUM_NP_BYTES + (col>>3);
-		m_pBits[idx] = (m_pBits[idx] & CMASK_BIT[col & 0x7]) | MASK_SET_BIT_C[!b][col & 0x7];
+		if( m_pBits ) delete [] m_pBits;
+	
+		m_pBits = new CBitVector[rows];
+		m_nRows = rows;
 	}
 	
-	BYTE* GetRow(int row)
+
+	void Create(int rows, int colbits)
 	{
-		return m_pBits + (row*NUM_NP_BYTES);
+		if( m_pBits ) delete [] m_pBits;
+	
+		m_pBits = new CBitVector[rows];
+		m_nRows = rows;
+		
+		for(int i=0; i<rows; i++)
+			m_pBits[i].Create(colbits);
+	}
+	 
+	
+	void FillRand(int colbits, BYTE* seed, int& pid, int& cnt)
+	{
+		for(int i=0; i<m_nRows; i++)
+			m_pBits[i].FillRand(colbits, seed, pid, cnt);
 	}
 
-	void XORRow(int row, BYTE* in, BYTE* out)
+	void Create(int rows, int colbits, BYTE* seed, int& pid, int& cnt)
 	{
-		BYTE* in2 = m_pBits + row*NUM_NP_BYTES;
-		for(int i=0; i<NUM_NP_BYTES; i++)
-			out[i] = in[i] ^ in2[i];
+		if( m_pBits ) delete [] m_pBits;
+	
+		m_pBits = new CBitVector[rows];
+		m_nRows = rows;
+		
+		for(int i=0; i<rows; i++)
+			m_pBits[i].Create(colbits, seed, pid, cnt);
 	}
- 	 
+
+	
+	CBitVector& operator [] (int i){ return m_pBits[i];} 
 private:
-	BYTE*		m_pBits;
+
+	CBitVector*	 m_pBits;
+	int			 m_nRows;
 };
 
 

@@ -26,7 +26,7 @@ BOOL CSNetCircuit::Create(int nParties, const vector<int>& vParams)
 	m_vNumVBits.resize(m_nNumParties, m_nRep);
 
 	m_nTotItems = (nParties-1);
-	m_nIdxRep = (int) ceil(log((double)m_nTotItems+1)/log(2.0)); 
+	m_nIdxRep = (int) ceil(log((double)m_nTotItems)/log(2.0)); 
 
 	m_nCntRep = (int) ceil(log(double(m_nRep))/log(2.0));
 	m_nCntRange = 1 << m_nCntRep;
@@ -83,16 +83,12 @@ BOOL CSNetCircuit::Create(int nParties, const vector<int>& vParams)
 		for(int i=0; i<m_nTotItems; i++)
 		{
 			m_vELMs[i] = PutELMGate(i);
-
-			cout << "elm " << i << "=" << m_vELMs[i] << endl;
 		}
 		
 		m_vIdxs.resize(m_nTotItems);
 		for(int i=0; i<m_nTotItems; i++)
 		{
-			m_vIdxs[i] = PutIdxGate(i+1);
-
-			cout << "idx " << i << "=" << m_vIdxs[i] << endl;
+			m_vELMs[i] = PutIdxGate(i);
 		}
 		PutLayerB();
 		PutOutputLayer();
@@ -105,40 +101,28 @@ BOOL CSNetCircuit::Create(int nParties, const vector<int>& vParams)
 
 void CSNetCircuit::CreateFindAllCloseMatches()
 {
-
 	vector<int> comp(m_nTotItems), in(m_nTotItems);
 	int delta = m_vInputStart[m_nNumParties-1] + 3*m_nRep;
-
-	//cout << "delta=" << delta << endl;
-
-
 	int dst;
 	for(int i=0; i<m_nTotItems; i++)
 	{
 		dst = PutDSTGate(i);	
 		comp[i] = PutGEGate(delta, dst, m_nRep);
 		in[i] = PutINGate(i);
-
-		/*
-		cout << " i=" << i
-			 << " dst=" << dst
-			 << " comp=" << comp[i]
-			 << " in=" << in[i]
-			 << endl;
-		*/
 	}
 
-	int out = m_nFrontier;
+	int out = m_nFrontier++;
 	for(int i=0; i<m_nTotItems; i++)
 	{
 		PutANDGate(comp[i], in[i]);
 	}
 
+
 	m_vOutputStart.resize(m_nNumParties, 1);
 	m_vOutputEnd.resize(m_nNumParties, 0);
 	 
 	m_vOutputStart[m_nNumParties-1] = out;
-	m_vOutputEnd[m_nNumParties-1] = m_nFrontier-1;
+	m_vOutputEnd[m_nNumParties-1] = out + m_nTotItems -1;
 
 	m_nNumGates = m_nFrontier;
 }
@@ -180,41 +164,22 @@ int CSNetCircuit::PutDSTGate(int r)
 {
 	int lr1 = 2+m_nRep*3*r;
 	int lr2 = lr1+m_nRep;
+	int hr = lr2+m_nRep;
 	
 	int l1 = m_vInputStart[m_nNumParties-1];
 	int l2 = l1 + m_nRep;
+	int h = l2+m_nRep;
+	int d = h+m_nRep;
 
 	int c1 = PutGEGate(lr1, l1, m_nRep);
 	int c2 = PutGEGate(lr2, l2, m_nRep);
-	
 	int a1 = PutMUXGate(lr1, l1, c1, m_nRep);
-	int b1 = PutMUXGate(lr1, l1, PutXORGate(1,c1), m_nRep); 
-	
 	int a2 = PutMUXGate(lr2, l2, c2, m_nRep);
+	int b1 = PutMUXGate(lr1, l1, PutXORGate(1,c1), m_nRep); 
 	int b2 = PutMUXGate(lr2, l2, PutXORGate(1,c2), m_nRep);
-	
-	int s1 = PutSubGate(a1, b1, m_nRep);
-	int s2 = PutSubGate(a2, b2, m_nRep);
-	
-	int dst = PutAddGate(s1,s2, m_nRep);
+	int dst = PutAddGate( PutSubGate(a1,b1,m_nRep), PutSubGate(a2,b2,m_nRep), m_nRep );
 	 
-	
-	cout << "DST(" << r << ")=" << dst << endl;
-	cout << "lr1=" << lr1 << endl;
-	cout << "lr2=" << lr2 << endl;
-	cout << "l1=" << l1 << endl;
-	cout << "l2=" << l2 << endl;
-	cout << ": GE(lr1,l1)=" << c1 << endl;
-	cout << ": GE(lr2,l2)=" << c2 << endl;
-	cout << ": MUX(lr1,l1,c1)=" << a1 << endl;
-	cout << ": MUX(lr2,l2,c2)=" << a2 << endl;
-	cout << ": MUX(lr1,l1,!c1)=" << b1 << endl;
-	cout << ": MUX(lr2,l2,!c2)=" << b2 << endl;
-	cout << ": SUB(a1,b1)=" << s1 << endl;
-	cout << ": SUB(a2,b2)=" << s2 << endl;
-	cout << endl;
-	
-	return dst;
+	return 1;
 }
   
 int	CSNetCircuit::PutCAPGate(int r)
@@ -341,11 +306,7 @@ int CSNetCircuit::PutELMGate(int r)
 		// find-closest-match
 		int dst = PutDSTGate(r);
 		int in = PutINGate(r);
-		int elm = PutELM1Gate(dst,in,m_nRep);
-
-		cout << "r=" << r << " dst=" << dst <<" in=" << in << " elm=" << elm << endl;
-
-		return elm;
+		return PutELM1Gate(dst,in,m_nRep);
 	}
 	else
 	{
@@ -355,12 +316,7 @@ int CSNetCircuit::PutELMGate(int r)
 		int d = PutGEGate(delta, dst, m_nRep);
 		int cap = PutCAPGate(r);
 		int cnt = PutCNTGate(cap);
-		int elm = PutELM0Gate(cnt, d, m_nCntRep);
-
-		cout	<< "r=" << r << " dst=" << dst << " delta=" << delta 
-				<< " ge=" << d << " cap=" << cap 
-				<<" cnt=" << cnt << " elm=" << elm << endl;
-		return elm;
+		return PutELM0Gate(cnt, d, m_nCntRep);
 	}
 }
 

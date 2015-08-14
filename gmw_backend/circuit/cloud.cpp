@@ -130,16 +130,16 @@ int CCloudCircuit::PutELMGate(int r)
 
 	int compq = PutGEGate(qr, q, m_nRep);
 	int compp = PutGEGate(p, pr, m_nRep);
-	int and1 = PutANDGate(compp, compq);
+	int and_ = PutANDGate(compp, compq);
 
 	int out;
 	if( m_bHQ )
 	{
-		out = PutELM0Gate(qr, and1, m_nRep); 
+		out = PutELM0Gate(qr, and_, m_nRep); 
 	}
 	else
 	{
-		out = PutELM1Gate(pr, and1, m_nRep);
+		out = PutELM1Gate(pr, and_, m_nRep);
 	}
 
 	return out;

@@ -29,6 +29,7 @@ private:
 	vector<int>				m_vSizes;
 	vector<int>				m_vAggSizes;
 	vector<BOOL>			m_vNeedOutput;
+	int						m_nFrontier;
 	vector<int>				m_vMatchIdxStart;
 };
 

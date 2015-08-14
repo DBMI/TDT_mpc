@@ -174,7 +174,7 @@ void CSICircuit::ConstructOutput(int Pi)
 	int sizei = m_vSizes[Pi];
 	
 	vector<int> outs(sizei);
-	int idx, sizej;
+	int idx, sizej, start;
 	vector<int> comps;
 	vector<int> match;
 	
@@ -217,13 +217,14 @@ void CSICircuit::ConstructOutput(int Pi)
 	}
 
 	// gates for outputs
-	m_vOutputStart[Pi] = m_nFrontier;
+	m_vOutputStart[Pi] = start = m_nFrontier;
+	m_nFrontier += sizei; 
+	m_vOutputEnd[Pi] = m_nFrontier - 1;
+
 	// XOR(out_i, 0)
-	for(int i=0; i<sizei; i++)
+	for(int i=0, j=start; i<sizei; i++, j++)
 	{
 		PutXORGate(outs[i], 0);
 	}
-	m_vOutputEnd[Pi] = m_nFrontier-1;
-
 }
 

@@ -556,18 +556,16 @@ BOOL CParty::ThreadRunIKNPSndFirst(int nRcvID)
 	//ostringstream os;
 	// compute g^{rk}
 	
-	SHA_BUFFER* pSeeds = new SHA_BUFFER[NUM_EXECS_NAOR_PINKAS];
-	sha1_context* sha1 = new sha1_context;
-
+	vector<sha1_context> vKeySeeds(NUM_EXECS_NAOR_PINKAS);
 	ZZ* pDec = new ZZ[NUM_EXECS_NAOR_PINKAS];
 	for(int i=0; i<NUM_EXECS_NAOR_PINKAS; i++ )
 	{
 	 	PowerMod(pDec[i], pC[0], pK[i], m_p);
 		BytesFromZZ(pBuf, pDec[i], nFieldSize);
 		
-		sha1_starts(sha1);
-		sha1_update(sha1, pBuf, nFieldSize);
-		sha1_finish(sha1, pSeeds[i]);
+		sha1_context& sha = vKeySeeds[i]; 
+		sha1_starts(&sha);
+		sha1_update(&sha, pBuf, nFieldSize);
  	} 
 
 	delete [] pK;
@@ -589,8 +587,8 @@ BOOL CParty::ThreadRunIKNPSndFirst(int nRcvID)
 #endif //IMPL_PRIVIATE_CHANNEL	
 		 
 	delete [] pBuf;
-	CBitNPMatrix& matrix = m_vIKNPMtx[nRcvID]; 
-	matrix.Create(m_nANDGates);
+	CBitMatrix& matrix = m_vIKNPMtx[nRcvID]; 
+	matrix.Create(NUM_EXECS_NAOR_PINKAS, m_nANDGates);
 	
 	// NP receiver: compute M_sigma
 	int nWindowBytes = NUM_EXECS_NAOR_PINKAS*4*OT_WINDOW_SIZE_BYTES;
@@ -603,6 +601,7 @@ BOOL CParty::ThreadRunIKNPSndFirst(int nRcvID)
 		vKeys[i].Create(SHA1_BITS);
 		 
 	int sock_rcv;
+	sha1_context sha1;
 	CBitVector vRcv; 
 	vRcv.AttachBuf(pBuf2);
 		
@@ -621,11 +620,10 @@ BOOL CParty::ThreadRunIKNPSndFirst(int nRcvID)
 			{
 				for(k=0; k<NUM_EXECS_NAOR_PINKAS; k++)
 				{
-					sha1_starts(sha1);
-					sha1_update(sha1, pSeeds[k], SHA1_BYTES);
-					sha1_update(sha1, (BYTE*) &nProgress, sizeof(nProgress));
-					sha1_update(sha1, (BYTE*) &k, sizeof(k));
-					sha1_finish(sha1, vKeys[k].GetArr());
+					sha1 = vKeySeeds[k];
+					sha1_update(&sha1, (BYTE*) &nProgress, sizeof(nProgress));
+					sha1_update(&sha1, (BYTE*) &k, sizeof(k));
+					sha1_finish(&sha1, vKeys[k].GetArr());
 				}
 				w = 0;
 			}
@@ -634,15 +632,13 @@ BOOL CParty::ThreadRunIKNPSndFirst(int nRcvID)
 			for(k=0; k<NUM_EXECS_NAOR_PINKAS; k++)
 			{
 				u = U.Get2Bits(k);
-				matrix.SetBit(nProgress, k, vKeys[k].GetBit(w)^vRcv.GetBit(j*4*NUM_EXECS_NAOR_PINKAS + k*4 + u));
+				matrix[k].SetBit(nProgress, vKeys[k].GetBit(w)^vRcv.GetBit(j*4*NUM_EXECS_NAOR_PINKAS + k*4 + u));
 			}
 		}
 	}
 	
 	vRcv.DetachBuf();
 	delete [] pBuf2;
-	delete [] pSeeds;
-	delete sha1;
 
 	return TRUE;
 }
@@ -654,37 +650,19 @@ BOOL CParty::ThreadRunIKNPSndSecond(int nRcvID)
 	CSocket& sock = m_vSockets[nRcvID];
 	CBitVector& input = m_vWWIn[nRcvID];
 	CBitVector& U = m_vIKNPU[nRcvID];
-	CBitNPMatrix& matrix = m_vIKNPMtx[nRcvID];
+	CBitMatrix& matrix = m_vIKNPMtx[nRcvID];
 	int& nProgress = m_vIKNPProgress[nRcvID];
-
-	while( nProgress <= 1 )
-	{
-		SleepMiliSec(100);
-	}
-
-	int bit;
-	CBitNPMatrix s;
-	s.Create(4);
-	for(int u=0; u<4; u++)
-	{
-		for(int k=0; k<NUM_EXECS_NAOR_PINKAS; k++)
-		{
-			bit = (U.Get2Bits(k) == u);	// s_j
-			int x = bit;
-			s.SetBit(u, k, bit);
-		}
-	}
-	 
-
 
 	CBitVector v;
 	v.Create(OT_WINDOW_SIZE*4);
 	int nOTBytes = (m_nANDGates*4 +7)/8;
 	
-	BYTE* qxors = new BYTE[NUM_NP_BYTES];
-	sha1_context* sha = new sha1_context;
-	BYTE* sha_buf = new BYTE[SHA1_BYTES];
+	CBitVector qxors;
+	qxors.Create(NUM_EXECS_NAOR_PINKAS);
 
+	sha1_context sha;
+	SHA_BUFFER sha_buf;
+	int bit;
 	int iu;
 	
 	int i=0;
@@ -702,17 +680,20 @@ BOOL CParty::ThreadRunIKNPSndSecond(int nRcvID)
 			//os << " (" << nRcvID << ") IKNP: ot-input (" << i << ") = ";   
 			for(int u=0; u<4; u++)
 			{
-				sha1_starts(sha);
-				
-				// (j,u)
+				sha1_starts(&sha);
 				iu = (i << 2) + u;
-				sha1_update(sha, (BYTE*) &iu, sizeof(iu));
+				sha1_update(&sha, (BYTE*) &iu, sizeof(iu));
 	
 				// gj xor s
-				matrix.XORRow( i, s.GetRow(u), qxors);
-				sha1_update(sha, qxors, NUM_NP_BYTES);
-		
-				sha1_finish(sha, sha_buf);
+				qxors.Reset();
+				for(int k=0; k<NUM_EXECS_NAOR_PINKAS; k++)
+				{
+					bit = matrix[k].GetBit(i);						// q
+					bit ^= (U.Get2Bits(k) == u);	// s_j
+					qxors.SetBit(k, bit);
+				}
+				sha1_update(&sha, qxors.GetArr(), NUM_EXECS_NAOR_PINKAS/8);
+				sha1_finish(&sha, sha_buf);
 		 
 				v.SetBit(j*4+u, (sha_buf[0]&1) ^ input.GetBit(i*4+u));
 
@@ -725,10 +706,6 @@ BOOL CParty::ThreadRunIKNPSndSecond(int nRcvID)
 		sock.Send(v.GetArr(), (j*4+7)/8);
 	}
 
-	delete [] qxors;
-	delete sha;
-	delete sha_buf;
-	 
 	return TRUE;
 }
 
@@ -818,11 +795,16 @@ BOOL CParty::ThreadRunIKNPRcvFirst(int nSndID)
 	/// Enc(M_u)s...
 	// buffer structure: [(s11, s12, s13, s14), ...., (s_np1, snp2, snp3, snp4)]_1, ...., [...]_and 
 	// Generate Key Seeds..
+	vector< vector<sha1_context> > vKeySeedMtx;
+	vKeySeedMtx.resize(NUM_EXECS_NAOR_PINKAS);
+	for(int k=0; k<NUM_EXECS_NAOR_PINKAS; k++)
+	{
+		vKeySeedMtx[k].resize(4); 
+	}
+
 	ZZ PK0r, PKr; //PK0r, pk^r;
 
-	SHA_BUF_MATRIX* pSeedMTX = new SHA_BUF_MATRIX;
-	sha1_context* sha1 = new sha1_context;
-
+	sha1_context* shap;
 	for(int k=0; k<NUM_EXECS_NAOR_PINKAS; k++ )
 	{
 		for(int u=0; u<4; u++)
@@ -842,9 +824,9 @@ BOOL CParty::ThreadRunIKNPRcvFirst(int nSndID)
  				BytesFromZZ(pBuf, PKr, nFieldSize);
  			}
 
-			sha1_starts(sha1);
-			sha1_update(sha1, pBuf, nFieldSize);
-			sha1_finish(sha1, (*pSeedMTX).buf[k][u].data);
+			shap = &vKeySeedMtx[k][u];
+			sha1_starts(shap);
+			sha1_update(shap, pBuf, nFieldSize);
 		}
 	}
 
@@ -870,10 +852,15 @@ BOOL CParty::ThreadRunIKNPRcvFirst(int nSndID)
 	}
 #endif //IMPL_PRIVIATE_CHANNEL	
 
-	SHA_BUF_MATRIX* pKeyMTx = new SHA_BUF_MATRIX;
-	 
+	vector<CBitMatrix> vKeyMtx(NUM_EXECS_NAOR_PINKAS);
+	for(int k=0; k<NUM_EXECS_NAOR_PINKAS; k++)
+	{
+		vKeyMtx[k].Create(4, SHA1_BITS);
+	}
+
 	CBitVector v;
 	v.AttachBuf(pBuf);
+	sha1_context sha1;
 	int i=0;
 	int j, k, u, w, t;
 	int val;
@@ -888,11 +875,10 @@ BOOL CParty::ThreadRunIKNPRcvFirst(int nSndID)
 				{
 					for(u=0; u<4; u++)
 					{
-						sha1_starts(sha1);
-						sha1_update(sha1, (*pSeedMTX).buf[k][u].data, SHA1_BYTES);
-						sha1_update(sha1, (BYTE*) &i, sizeof(i));
-						sha1_update(sha1, (BYTE*) &k, sizeof(k));
-						sha1_finish(sha1, (*pKeyMTx).buf[k][u].data);
+						sha1 = vKeySeedMtx[k][u];
+						sha1_update(&sha1, (BYTE*) &i, sizeof(i));
+						sha1_update(&sha1, (BYTE*) &k, sizeof(k));
+						sha1_finish(&sha1, vKeyMtx[k][u].GetArr());
 					}
 				}
 				
@@ -907,7 +893,7 @@ BOOL CParty::ThreadRunIKNPRcvFirst(int nSndID)
 				{
 					val = t;    
 					val ^= (input.Get2Bits(i) == u);
-					val ^= GETBIT((*pKeyMTx).buf[k][u].data, w);
+					val ^= vKeyMtx[k][u].GetBit(w);
 					v.SetBit( j*4*NUM_EXECS_NAOR_PINKAS + k*4 + u, val);
 				}
 			}
@@ -923,9 +909,7 @@ BOOL CParty::ThreadRunIKNPRcvFirst(int nSndID)
 	delete [] pCr;
 	delete [] pPK0;
 	delete [] pBuf; 
-	delete pSeedMTX;
-	delete pKeyMTx;
-	delete sha1;
+
 	return TRUE;
 }
 
@@ -944,8 +928,8 @@ BOOL CParty::ThreadRunIKNPRcvSecond(int nSndID)
 	CBitVector tj;
 	tj.Create(NUM_EXECS_NAOR_PINKAS);
 	
-	BYTE* sha_buf = new BYTE[SHA1_BYTES];
-	sha1_context* sha = new sha1_context;
+	SHA_BUFFER sha_buf;
+	sha1_context sha;
 
 	int nWindowBytes = 4*OT_WINDOW_SIZE_BYTES;
 	int nToRcvBytes = (4*m_nANDGates + 7)/8;
@@ -970,24 +954,21 @@ BOOL CParty::ThreadRunIKNPRcvSecond(int nSndID)
 		{
 			u = input.Get2Bits(i);
 			iu = (i << 2) + u;
-			sha1_starts(sha);
-			sha1_update(sha, (BYTE*) &iu, sizeof(iu));
+			sha1_starts(&sha);
+			sha1_update(&sha, (BYTE*) &iu, sizeof(iu));
 		 
 			tj.Reset();
 			for(int k=0; k<NUM_EXECS_NAOR_PINKAS; k++)
 			{
 				tj.SetBit(k, T.GetBit(k*m_nANDGates+i));
 			}
-			sha1_update(sha, tj.GetArr(), NUM_EXECS_NAOR_PINKAS/8);
-			sha1_finish(sha, sha_buf);
+			sha1_update(&sha, tj.GetArr(), NUM_EXECS_NAOR_PINKAS/8);
+			sha1_finish(&sha, sha_buf);
 		 	out.SetBit(i, (sha_buf[0]&1) ^ v.GetBit(j*4+u) );
 			
 			//cout << " (" << nSndID << ") IKNP: ot-output (" << i << "," << u <<") = " << (int) out.GetBit(i) << endl;
 		 }
 	}
-
-	delete [] sha_buf;
-	delete sha;
 
 	return TRUE;
 }

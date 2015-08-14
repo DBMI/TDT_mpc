@@ -1,4 +1,4 @@
-// circtool.cpp : Defines the entry point for the console application.
+//circtool.cpp : Defines the entry point for the console application.
 //
 #include "../util/typedefs.h"
 #include "../util/config.h"

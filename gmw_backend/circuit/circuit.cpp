@@ -120,23 +120,10 @@ void CCircuit::Evaluate()
 	char inleft; 
 	char inright; 
 	int left, right, type;
-	while (id<m_nNumGates)
-	{
+	while (id<m_nNumGates){
 		type = m_pGates[id].type;
-
 		left = m_pGates[id].left;
 		right = m_pGates[id].right;
-
-		if( left < 0 || left >= m_nNumGates || right < 0 || right >= m_nNumGates )
-		{
-			cout << "error!" << endl;
-			cout << id << "(" << type << "): ";
-			cout << " left(" << m_pGates[id].left;
-			cout << " right(" << m_pGates[id].right;
-			cout << endl;
-			return;
-		}
-			
 		inleft= m_pGates[left].val; 
 		inright = m_pGates[right].val;
 		
@@ -263,7 +250,7 @@ void CCircuit::SaveBin(const char* filename)
 	GATE* g;
 
 	int zero=0;
-	for(int i=0; i<1; i++)
+	for(int i=0; i<2; i++)
 	{
 		f.write((const char*) &zero, sizeof(int));
 	}
@@ -406,7 +393,6 @@ BOOL CCircuit::LoadBin(const char* filename)
 	f.read((char*)&m_othStartGate, sizeof(int));
 	f.read((char*)&m_nNumGates, sizeof(int));
 	f.read((char*)&m_nNumXORs, sizeof(int));
-	 
 	m_vInputStart.resize(m_nNumParties);
 	m_vInputEnd.resize(m_nNumParties);
 	m_vOutputStart.resize(m_nNumParties);
@@ -428,12 +414,12 @@ BOOL CCircuit::LoadBin(const char* filename)
 	{
 		f.read((char*)&m_vNumVBits[i], sizeof(int));
 	}
-
 	if( !m_pGates ) m_pGates = new GATE[m_nNumGates];
 	GATE* g;
 	for(int i=0; i<m_othStartGate; i++ )
 	{
 		g = m_pGates + i;
+		g->type = 0;
 		g->left = g->right = -1;
 		f.read((char*)&g->p_num, sizeof(int));
 		if( g->p_num > 0 )
@@ -447,6 +433,7 @@ BOOL CCircuit::LoadBin(const char* filename)
 	{
 		g = m_pGates + i;
 		f.read((char*)g, sizeof(GATE)-sizeof(int));
+
 		if( g->p_num > 0 )
 		{
 			g->p_ids = New(g->p_num);
@@ -656,7 +643,22 @@ void TEST_CIRCUIT(const vector<const char*>& configs, BOOL bLog)
 	}
 	else
 	{
-		circ = LOAD_CIRCUIT_BIN(cfs[0]->GetCircFileName().c_str());
+		const char* old_filename = cfs[0]->GetCircFileName().c_str();
+		char* filename = (char*)malloc(strlen(old_filename)+1);	
+		strcpy(filename, old_filename);
+		char* split = strtok(filename,".");
+		split = strtok(NULL, ".");
+		if(strcmp(split,"bin")==0) {
+		    circ = LOAD_CIRCUIT_BIN(old_filename);
+		}
+		else if(strcmp(split, "txt")==0) {
+		    circ = LOAD_CIRCUIT_TXT(old_filename);
+		}
+		else {
+		    cout << "Circuit filetype \"" << split[1] <<"\" invalid"<< endl; 
+		    return; 
+		}
+		free(filename);
 	}
 		
 	GATE* gates = circ->Gates();
@@ -942,7 +944,7 @@ int CCircuit::PutSubGate(int a, int b, int rep)
 	vector<int> C(rep);	 	
 	int axc, bxc,  acNbc;
 	
-	C[0] = 1;
+	C[0] = 0;
 	
 	int i=0;
 	for( ; i<rep-1; i++)
@@ -963,24 +965,20 @@ int CCircuit::PutSubGate(int a, int b, int rep)
 	}
 
  
-	int axb = m_nFrontier;
+	int axb;
+	vector<int> abc(rep);	
 	for(int i=0; i<rep; i++)
 	{
 		// a[i] xor b[i]
-		PutXORGate(a+i, b+i);
-	}
-
-	int abc = m_nFrontier;
-	for(int i=0; i<rep; i++)
-	{
-		PutXORGate(axb+i, C[i]);
+		axb = PutXORGate(a+i, b+i);
+		abc[i] = PutXORGate(axb, C[i]);
 	} 
 
 	// Construct Output gates of Addition
 	int out = m_nFrontier;
 	for(int i=0; i<rep; i++)
 	{
-		PutXORGate(abc+i, 1);
+		PutXORGate(abc[i], 1);
 	}
 	 
 	return out;

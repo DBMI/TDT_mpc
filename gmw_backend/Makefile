@@ -14,6 +14,7 @@ OBJECTS_CIRCTOOL=circtool/*.o
 SOURCES_CIRCUIT=circuit/*.cpp
 OBJECTS_CIRCUIT=circuit/*.o
 INCLUDE=..
+CFLAGS=-g
 
 all: ${BIN}
 

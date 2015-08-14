@@ -13,7 +13,7 @@ fn main() {
     let args = env::args().collect::<Vec<_>>();
     let dir = Path::new(&args[1]);
     let parameters = File::open(dir.join(Path::new(&args[2] as &str))).unwrap();
-    let mut reader_parameters = BufReader::new(parameters);
+    let reader_parameters = BufReader::new(parameters);
     let mut this_party = 0;
     let mut num_inputs = 0;
     let mut k = 0;
@@ -37,8 +37,8 @@ fn main() {
     //gen_input(num_inputs as usize, max as u64, dir);
     //return;
     
-    let input = File::open(dir.join(Path::new(&args[3] as &str))).unwrap();
-    let mut reader_input = BufReader::new(input);
+    let input = File::open(&args[3] as &str).unwrap();
+    let reader_input = BufReader::new(input);
     let mut bs = Vec::new();
     let mut cs = Vec::new();
     let mut id_map = Vec::new();

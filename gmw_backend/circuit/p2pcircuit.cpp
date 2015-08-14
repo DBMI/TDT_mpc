@@ -452,8 +452,14 @@ BOOL CP2PCircuit::Create(int nParties, const vector<int>& vParams)
 	m_nNumParties = m_nNumServers + 1;
 	m_vInputStart.resize(m_nNumParties);
 	m_vInputEnd.resize(m_nNumParties);
-	 
-	/*
+
+	//for(int i=0; i<m_nNumParties; i++)
+	//{
+	//	m_vInputStart[i] = GetInputStartC(i);
+	//	m_vInputEnd[i] = GetInputEndC(i);
+	//}
+
+	#ifdef _DEBUG
 	cout << "input start gate id1: " << m_vInputStart[0] << endl;
 	cout << "input end gate id1: " << m_vInputEnd[0] << endl;
 	cout << "input start gate id2: " << m_vInputStart[1] << endl;
@@ -466,7 +472,7 @@ BOOL CP2PCircuit::Create(int nParties, const vector<int>& vParams)
 	cout << "output end gate id2: " << m_vOutputEnd[1] << endl;
 	cout << "output start gate id3: " << m_vOutputStart[2] << endl;
 	cout << "output end gate id3: " << m_vOutputEnd[2] << endl;
-	*/
+	#endif
 
 	return TRUE;
 }
@@ -1037,8 +1043,8 @@ int CP2PCircuit::CreateMUXIndex(int id, int is_final, int num_bits, int num_vbit
 			(m_pGates+id)->p_ids = New(1);
 			tmpid = m_vOutputStart[nParties-1]+num_outgates;
 			(m_pGates+id)->p_ids[0] = tmpid;
-			//cout << "Output Gate id:" << id << endl;
-			//cout << "Final Output Gate id:" << tmpid << endl;
+			cout << "Output Gate id:" << id << endl;
+			cout << "Final Output Gate id:" << tmpid << endl;
 			(m_pGates+tmpid)->left = id;
 			num_outgates++;
 		}

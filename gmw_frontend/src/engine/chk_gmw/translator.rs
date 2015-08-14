@@ -29,16 +29,13 @@ pub fn translate(circuit_desc: &BoolCircuitDesc, dir: &Path) {
     seed.randomize(token, STRONG_RANDOM);
     let int_seed: u64 = seed.iter().enumerate()
         .fold(0u64, |accu, (i, x)| accu+(*x as u64)<<i*8);
-    let config_name = format!("config{}.txt",
-                                  circuit_desc.get_this_party());
-    let config_path = Path::new(&config_name as &str);
+    let config_path = Path::new("config.txt");
     let mut config = File::create(dir.join(config_path)).ok().unwrap();
     write!(&mut config, "num_parties {}\n", 
            circuit_desc.get_num_parties()).ok();
     write!(&mut config, "pid {}\n", circuit_desc.get_this_party()).ok();
     write!(&mut config, "address-book addresses.txt\n").ok();
-    write!(&mut config, "input input{}.txt\n", 
-           circuit_desc.get_this_party()).ok();
+    write!(&mut config, "input input.txt\n").ok();
     write!(&mut config, "load-circuit circ.bin\n").ok();
     //let num_input = circuit_desc.get_inputs().iter()
         //.fold(0, |acc, x| {
@@ -62,8 +59,7 @@ pub fn translate(circuit_desc: &BoolCircuitDesc, dir: &Path) {
     let mut counter = 0;
     let mut first_non_input = None;
     let mut n_xor = 0;
-    let input_name = format!("input{}.txt", circuit_desc.get_this_party());
-    let input_path = Path::new(&input_name as &str);
+    let input_path = Path::new("input.txt");
     let mut input = File::create(dir.join(input_path)).ok().unwrap();
     for i in circuit_desc.get_inputs() {
         if (i.input.0==0) | (i.input.0==1) { continue; }

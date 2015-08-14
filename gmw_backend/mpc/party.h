@@ -131,7 +131,7 @@ public:
 	// IKNP:
 	vector<CBitVector>	m_vIKNPT;
 	vector<CBitVector>	m_vIKNPU;
-	vector<CBitNPMatrix> m_vIKNPMtx;
+	vector<CBitMatrix>	m_vIKNPMtx;
 	vector<int>			m_vIKNPProgress;
 
 	// SHA PRG
